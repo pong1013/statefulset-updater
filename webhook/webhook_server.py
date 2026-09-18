@@ -20,7 +20,7 @@ api = client.AppsV1Api()
 
 # 告訴Flask我們現在要執行一個叫做app的網站程式，__name__是Flask內的模組名稱
 app = Flask(__name__)
-app.debug = True
+app.debug = False
 
 # configure log
 app.logger.addHandler(
@@ -35,7 +35,7 @@ VOLUME_UPPER_BOUND = 2000  # Gi upper bound
 def mutate_statefulset():  # POST endpoint進行傳送 用來將mutate_statefulset與URL path '/' 關聯起來
 
     admission_request = request.get_json()
-    app.logger.info("Received admission request: %s", admission_request)
+    app.logger.info("Received admission request %s", admission_request["request"]["uid"])
     # Extract the StatefulSet object from the admission request
     request_object = admission_request["request"]["object"]
 
@@ -49,6 +49,7 @@ def mutate_statefulset():  # POST endpoint進行傳送 用來將mutate_statefuls
         return admission_response(True, admission_request)
 
     patch_list = []
+    annotations_created = False
 
     for vc in range(num_volume_claims):
         vc = int(vc)
@@ -78,9 +79,15 @@ def mutate_statefulset():  # POST endpoint進行傳送 用來將mutate_statefuls
             else:
                 if new_size_int > previous_size_int:
                     app.logger.info("new size: %s", new_storage_size)
-                    app.logger.info(("previous: %s", previous_storage_size))
-                    app.logger.info("new size bigger")
-                    app.logger.debug("Size change to %s", new_storage_size)
+                    app.logger.info("previous size: %s", previous_storage_size)
+                    if (
+                        request_object["metadata"].get("annotations") is None
+                        and not annotations_created
+                    ):
+                        patch_list.append(
+                            {"op": "add", "path": "/metadata/annotations", "value": {}}
+                        )
+                        annotations_created = True
                     patch_list += [
                         {
                             "op": "replace",
@@ -100,7 +107,6 @@ def mutate_statefulset():  # POST endpoint進行傳送 用來將mutate_statefuls
 
     patch_size_json = json.dumps(patch_list)  # str
     encoded_patch = base64.b64encode(patch_size_json.encode("utf-8")).decode("utf-8")
-    app.logger.info(admission_resize_response(True, admission_request, encoded_patch))
     return admission_resize_response(True, admission_request, encoded_patch)
 
 

@@ -1,33 +1,113 @@
-# Manually Resize Operator
-This Python script operator monitors StatefulSets across all namespaces in a Kubernetes cluster and adjusts the size of their PersistentVolumeClaims (PVCs) based on annotations provided in the StatefulSet metadata.
-![plot](../images/resize.png)
-### How to resize manually?
-Add annotation with new size:
-- `"resize-statefulset-operator/resize-{vc}": "10Gi"` -> `"resize-statefulset-operator/resize-0": "10Gi"`
-- ‼️Statefulset may has several vc template, so we need to specify the no. of vc.
+# 手動擴容 Operator / Manual Resize Operator
 
-## Setup
-**1. Install Crossplane CRDs**
+[返回主指南](../README.md) · [Back to the main guide](../README.md)
 
-- To monitor and modify StatefulSets across all namespaces, we need to install Crossplane. Crossplane extends Kubernetes with Custom Resource Definitions (CRDs) and controllers, allowing us to define infrastructure resources as Kubernetes objects. 
+[繁體中文](#繁體中文) · [English](#english)
 
-- [Crossplane](https://marketplace.upbound.io/providers/upbound/provider-azure/v0.19.0/docs)
+## 繁體中文
 
-**2. Add local config**
+這個 operator 監看所有 namespace 中的 StatefulSet。你在 StatefulSet 上加入擴容 annotation 後，它會更新對應的 PVC，將 StatefulSet 資訊暫存到 ConfigMap，然後以 orphan 方式刪除並重建 StatefulSet，讓 volumeClaimTemplates 反映新容量。原有 Pod 不會因為刪除控制器而直接刪除，但仍請先在測試叢集驗證。
 
-- Using a local kubeconfig allows you to execute `resize-sts-operator.py` locally to test if the operator is running smoothly. Once you've confirmed there are no issues, you can then build the image and deploy it to Kubernetes.
-  ```python
-  # local load kubeconfig
-  config.load_kube_config("PATH TO KUBECONFIG")
-  ```
+### 指定要擴容的 PVC
 
-**3. Build Image**
+annotation 格式為 `resize-statefulset-operator/resize-N=20Gi`：
 
-- `docker build`
+- `N` 是 volumeClaimTemplates 中從 **0 開始**的索引。第一個是 `resize-0`，第二個是 `resize-1`。
+- 容量目前請使用整數 `Gi`，且必須大於原本大小。此工具不支援縮容。
+- 若 StatefulSet 有多個 PVC 模板，可以各自加入對應的 annotation。
 
-**4. Deploy to k8s**
+先確認模板順序，再提交擴容請求。把 `my-statefulset` 與 `20Gi` 換成你的值：
 
-- `helm install resize-statefulset-operator ./`
+~~~sh
+export NAMESPACE=default
+kubectl -n "$NAMESPACE" get statefulsets
+kubectl -n "$NAMESPACE" get statefulset my-statefulset \
+  -o jsonpath='{.spec.volumeClaimTemplates[*].metadata.name}'
+kubectl -n "$NAMESPACE" get pvc
 
+kubectl -n "$NAMESPACE" annotate statefulset my-statefulset \
+  resize-statefulset-operator/resize-0=20Gi --overwrite
+~~~
 
+操作後查看 PVC 和 operator 日誌：
 
+~~~sh
+kubectl -n "$NAMESPACE" get pvc
+kubectl -n "$NAMESPACE" get statefulset my-statefulset
+kubectl -n "$NAMESPACE" logs deployment/resize-statefulset-operator
+~~~
+
+### 安裝
+
+請先完成[主指南的前置檢查](../README.md#開始之前)，尤其是 StorageClass 的 `allowVolumeExpansion`。從 repo 根目錄執行以下指令；把範例 registry 換成叢集可存取的位址。公開 registry 可用 `--set-json 'imagePullSecrets=[]'`；私有 registry 請建立 `regcred` 並移除該選項。
+
+~~~sh
+export NAMESPACE=default
+export REGISTRY=registry.example.com/team
+export TAG=1.0.0
+
+docker build -f main-resize-operator/Dockerfile -t "$REGISTRY/manual-resize:$TAG" .
+docker push "$REGISTRY/manual-resize:$TAG"
+
+helm upgrade --install resize-statefulset-operator ./main-resize-operator/chart \
+  --namespace "$NAMESPACE" \
+  --set "image.repository=$REGISTRY/manual-resize" \
+  --set "image.tag=$TAG" \
+  --set-json 'imagePullSecrets=[]'
+~~~
+
+如果 PVC 沒有擴大，先確認 StorageClass、annotation 索引與容量格式，再看 operator 日誌。StatefulSet 重建期間避免同時修改同一個 StatefulSet。
+
+## English
+
+This operator watches StatefulSets in all namespaces. After you add a resize annotation, it expands the matching PVCs, saves the StatefulSet in a ConfigMap, and deletes and recreates the StatefulSet with orphan propagation so its volumeClaimTemplates show the new size. Existing Pods are not directly deleted with the controller, but test the workflow in a nonproduction cluster first.
+
+### Choose the PVC to expand
+
+The annotation format is `resize-statefulset-operator/resize-N=20Gi`:
+
+- `N` is a **zero-based** index into volumeClaimTemplates. Use `resize-0` for the first template and `resize-1` for the second.
+- Currently use a whole number of `Gi`. The target must be larger than the current size. Shrinking is not supported.
+- For multiple claim templates, add an annotation for each one you want to expand.
+
+Inspect the template order, then request the increase. Replace `my-statefulset` and `20Gi` with your values:
+
+~~~sh
+export NAMESPACE=default
+kubectl -n "$NAMESPACE" get statefulsets
+kubectl -n "$NAMESPACE" get statefulset my-statefulset \
+  -o jsonpath='{.spec.volumeClaimTemplates[*].metadata.name}'
+kubectl -n "$NAMESPACE" get pvc
+
+kubectl -n "$NAMESPACE" annotate statefulset my-statefulset \
+  resize-statefulset-operator/resize-0=20Gi --overwrite
+~~~
+
+Check the PVCs and operator logs afterward:
+
+~~~sh
+kubectl -n "$NAMESPACE" get pvc
+kubectl -n "$NAMESPACE" get statefulset my-statefulset
+kubectl -n "$NAMESPACE" logs deployment/resize-statefulset-operator
+~~~
+
+### Install
+
+Complete the [prerequisites in the main guide](../README.md#prerequisites), especially StorageClass `allowVolumeExpansion`. Run these commands from the repository root and replace the example registry with one your cluster can reach. For a public registry, use `--set-json 'imagePullSecrets=[]'`. For a private registry, create `regcred` and omit that option.
+
+~~~sh
+export NAMESPACE=default
+export REGISTRY=registry.example.com/team
+export TAG=1.0.0
+
+docker build -f main-resize-operator/Dockerfile -t "$REGISTRY/manual-resize:$TAG" .
+docker push "$REGISTRY/manual-resize:$TAG"
+
+helm upgrade --install resize-statefulset-operator ./main-resize-operator/chart \
+  --namespace "$NAMESPACE" \
+  --set "image.repository=$REGISTRY/manual-resize" \
+  --set "image.tag=$TAG" \
+  --set-json 'imagePullSecrets=[]'
+~~~
+
+If the PVC does not grow, check the StorageClass, annotation index, and size format, then inspect the operator logs. Avoid editing the same StatefulSet while it is being recreated.

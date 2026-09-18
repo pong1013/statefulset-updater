@@ -1,14 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
-# This role binding allows "jane" to read pods in the "default" namespace.
-# You need to already have a Role named "pod-reader" in that namespace.
 kind: ClusterRoleBinding
 metadata:
-  name: { { include "auto-resize.fullname" . } }
+  name: {{ include "auto-resize.fullname" . }}
 subjects:
   - kind: ServiceAccount
-    name: { { include "auto-resize.fullname" . } }
-    namespace: { { .Release.Namespace } }
+    name: {{ include "auto-resize.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: { { include "auto-resize.fullname" . } }
+  name: {{ include "auto-resize.fullname" . }}

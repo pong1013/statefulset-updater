@@ -9,7 +9,8 @@ __pycache__/
 
 # Kubernetes
 kubeconfig
-*.yaml
+*.key
+*.pem
 
 # Docker
 *.log

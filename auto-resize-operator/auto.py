@@ -1,5 +1,7 @@
 import sys
 import logging
+import re
+from decimal import Decimal, ROUND_CEILING
 from kubernetes.client.api import core_v1_api
 from kubernetes import client, config, watch
 from kubernetes.stream import stream
@@ -7,23 +9,20 @@ import base64
 
 
 def transcript(size):
-    if size[-2:] == "T\n":
-        size_Ti = size.replace("T\n", "")
-        size_int = int(size_Ti) * 1000
-    elif size[-2:] == "G\n":
-        size_Ti = size.replace("G\n", "")
-        size_int = int(size_Ti)
-    return size_int
+    match = re.fullmatch(r"(\d+(?:\.\d+)?)([KMGTPE]?)", size.strip())
+    if match is None:
+        raise ValueError("Unsupported df size: %r" % size)
+    powers = {"": -3, "K": -2, "M": -1, "G": 0, "T": 1, "P": 2, "E": 3}
+    gibibytes = Decimal(match.group(1)) * (Decimal(1024) ** powers[match.group(2)])
+    return int(gibibytes.to_integral_value(rounding=ROUND_CEILING))
 
 
-def get_pvc(sts, vc_num):  #  get pvc name → container and right mountPath
+def get_pvc(sts, vc):  # get PVC name for a volume claim template
     try:
-        for vc in range(vc_num):
-            vc = int(vc)
-            pvc_name = sts.spec.volume_claim_templates[vc].metadata.name
-            print("PVC: %s" % (pvc_name))
-            return pvc_name, vc
-    except:
+        pvc_name = sts.spec.volume_claim_templates[vc].metadata.name
+        print("PVC: %s" % (pvc_name))
+        return pvc_name
+    except IndexError:
         return None
 
 
@@ -126,8 +125,9 @@ def main():
             for event in stream:
                 if event["object"].metadata.labels is not None:
                     if (
-                        "resize-statefulset-operator/auto-scaled"
-                        in event["object"].metadata.labels
+                        event["object"].metadata.labels.get(
+                            "resize-statefulset-operator/auto-scaled"
+                        ) == "true"
                     ):
                         sts_name = event["object"].metadata.name
                         namespace = event["object"].metadata.namespace
@@ -142,15 +142,16 @@ def main():
                             print("volumeclaimtemplates: %s" % (vc_num))
                             print("containers: %s" % (container_num))
 
-                            # The function use to get pvc name
-                            pvc_name, vc = get_pvc(sts, vc_num)
-                            if pvc_name is None:
-                                print("Statefulset %s has no pvc" % (sts_name))
-                            else:
+                            for vc in range(vc_num):
+                                pvc_name = get_pvc(sts, vc)
+                                if pvc_name is None:
+                                    continue
                                 # The function use to get corresponding container and mountPath
-                                ctr, mountPath = get_mountPath(
-                                    sts, container_num, pvc_name
-                                )
+                                mount = get_mountPath(sts, container_num, pvc_name)
+                                if mount is None:
+                                    logging.warning("No mount found for PVC %s", pvc_name)
+                                    continue
+                                ctr, mountPath = mount
 
                                 for rep in range(replicas):
                                     pod_name = sts_name + "-" + str(rep)
@@ -175,8 +176,8 @@ def main():
                                         )
                                     elif usage < 80:
                                         print("Don't worry\n")
-                        except:
-                            logging.info("%s has no PVC\n" % (sts_name))
+                        except Exception:
+                            logging.exception("Failed to process StatefulSet %s", sts_name)
         except ConnectionResetError as e:
             logging.info(e)
         logging.info("To avoid the ConnectionResetError. Timeout...")

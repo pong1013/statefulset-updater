@@ -1,0 +1,29 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: azure/setup-helm@v5.0.0
+        with:
+          version: v3.18.4
+      - name: Check Python syntax
+        run: python3 -m py_compile webhook/webhook_server.py main-resize-operator/resize_sts_operator.py auto-resize-operator/auto.py
+      - name: Run behavior tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Lint Helm charts
+        run: |
+          helm lint main-resize-operator/chart --set image.repository=example/operator
+          helm lint auto-resize-operator/auto-resize --set image.repository=example/operator
+          helm lint webhook/rso-webhook-server \
+            --set image.repository=example/webhook \
+            --set tls.existingSecret=rotated-webhook-tls \
+            --set tls.caBundle=Y2E=

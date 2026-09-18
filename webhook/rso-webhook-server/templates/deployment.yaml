@@ -54,7 +54,7 @@ spec:
       volumes:
       - name: certs-volume
         secret:
-          secretName: admission-tls
+          secretName: {{ required "tls.existingSecret must name an existing TLS Secret" .Values.tls.existingSecret | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

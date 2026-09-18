@@ -1,24 +1,16 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: { { include "resize-statefulset-operator.fullname" . } }
-  labels: { { - include "resize-statefulset-operator.labels" . | nindent 4 } }
+  name: {{ include "resize-statefulset-operator.fullname" . }}
+  labels:
+    {{- include "resize-statefulset-operator.labels" . | nindent 4 }}
 rules:
   - resources: ["statefulsets"]
-    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+    verbs: ["create", "delete", "get", "list", "watch"]
     apiGroups: ["apps"]
   - resources: ["configmaps"]
-    verbs: ["get", "list", "watch", "create", "update"]
-    apiGroups: ["*"]
-  - resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch", "update"]
-    apiGroups: ["*"]
-  - resources: ["namespaces"]
-    verbs: ["get", "list"]
-    apiGroups: ["*"]
-  - resources: ["pods", "pods/log"]
-    verbs: ["get", "list"]
+    verbs: ["get", "create", "update"]
     apiGroups: [""]
-  - apiGroups: [""]
-    resources: ["pods/exec"]
-    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - resources: ["persistentvolumeclaims"]
+    verbs: ["get", "update"]
+    apiGroups: [""]

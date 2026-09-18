@@ -46,6 +46,12 @@ service:
 mutatingwebhookconfiguration:
   name: mutating-webhook.rso.io
 
+# Create this Secret before installing the chart. It must contain server.crt and server.key.
+tls:
+  existingSecret: ""
+  # Base64-encoded PEM of the CA that signed server.crt.
+  caBundle: ""
+
 
 resources: {}
 # We usually recommend not to specify default resources and to leave this as a conscious

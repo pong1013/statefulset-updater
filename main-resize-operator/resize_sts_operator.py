@@ -33,15 +33,19 @@ def main():
                 sts_name = event["object"].metadata.name
                 namespace = event["object"].metadata.namespace
                 last_seen_version = event["object"].metadata.resource_version
-                annotations = event["object"].metadata.annotations
-                vc_num = 0
-                for key, value in annotations.items():
-                    if key.startswith("resize-statefulset-operator/resize-"):
-                        vc_num += 1
+                annotations = event["object"].metadata.annotations or {}
+                prefix = "resize-statefulset-operator/resize-"
+                vc_indexes = sorted(
+                    int(key[len(prefix):])
+                    for key in annotations
+                    if key.startswith(prefix) and key[len(prefix):].isdigit()
+                )
 
-                if vc_num != 0:
-                    for vc in range(vc_num):
-                        vc = int(vc)
+                if vc_indexes:
+                    for vc in vc_indexes:
+                        if vc >= len(event["object"].spec.volume_claim_templates):
+                            logging.warning("Ignoring resize annotation for missing template %s", vc)
+                            continue
                         sts_name = event["object"].metadata.name
                         replicas = event["object"].status.replicas
                         namespace = event["object"].metadata.namespace
@@ -163,7 +167,7 @@ def update_statefulset(sts, config_name, ns, vc):
 
     while True:
         try:
-            api.read_namespaced_stateful_set(ns, sts)
+            api.read_namespaced_stateful_set(sts, ns)
             time.sleep(1)
         except client.rest.ApiException as est:
             if est.status == 404:
