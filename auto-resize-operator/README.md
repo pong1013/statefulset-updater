@@ -1,6 +1,6 @@
 # 自動擴容 Operator / Automatic Resize Operator
 
-[返回主指南](../README.md) · [Back to the main guide](../README.md)
+[返回繁中主指南](../README.zh-TW.md) · [Back to the English guide](../README.md)
 
 [繁體中文](#繁體中文) · [English](#english)
 
@@ -10,7 +10,7 @@
 
 ### 啟用
 
-先依[主指南](../README.md#快速開始)安裝三個元件，再把 `my-statefulset` 換成目標名稱：
+先依[繁中主指南](../README.zh-TW.md#快速開始)安裝三個元件，再把 `my-statefulset` 換成目標名稱：
 
 ~~~sh
 export NAMESPACE=default
