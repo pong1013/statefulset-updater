@@ -1,6 +1,6 @@
 # Webhook / 準入 Webhook
 
-[返回主指南](../README.md) · [Back to the main guide](../README.md)
+[返回繁中主指南](../README.zh-TW.md) · [Back to the English guide](../README.md)
 
 [繁體中文](#繁體中文) · [English](#english)
 
@@ -12,7 +12,7 @@
 
 1. 確認目標 StorageClass 支援 PVC 擴容，並先在測試叢集試用。
 2. 取得新的 `server.crt`、`server.key` 與 `ca.crt`。憑證的 SAN 必須包含 `webhook.<namespace>.svc`。產生方式見[憑證指南](cert/README.md)。
-3. 把映像推送到叢集可存取的 registry。主指南有[完整建置順序](../README.md#快速開始)。
+3. 把映像推送到叢集可存取的 registry。繁中主指南有[完整建置順序](../README.zh-TW.md#快速開始)。
 
 以下指令都從 **repo 根目錄**執行。替換 registry 與憑證路徑；範例假設映像可公開拉取。若使用私有 registry，請先建立 `regcred`，並移除 Helm 指令中的 `--set-json 'imagePullSecrets=[]'`。
 

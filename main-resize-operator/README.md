@@ -1,6 +1,6 @@
 # 手動擴容 Operator / Manual Resize Operator
 
-[返回主指南](../README.md) · [Back to the main guide](../README.md)
+[返回繁中主指南](../README.zh-TW.md) · [Back to the English guide](../README.md)
 
 [繁體中文](#繁體中文) · [English](#english)
 
@@ -39,7 +39,7 @@ kubectl -n "$NAMESPACE" logs deployment/resize-statefulset-operator
 
 ### 安裝
 
-請先完成[主指南的前置檢查](../README.md#開始之前)，尤其是 StorageClass 的 `allowVolumeExpansion`。從 repo 根目錄執行以下指令；把範例 registry 換成叢集可存取的位址。公開 registry 可用 `--set-json 'imagePullSecrets=[]'`；私有 registry 請建立 `regcred` 並移除該選項。
+請先完成[繁中主指南的前置檢查](../README.zh-TW.md#開始之前)，尤其是 StorageClass 的 `allowVolumeExpansion`。從 repo 根目錄執行以下指令；把範例 registry 換成叢集可存取的位址。公開 registry 可用 `--set-json 'imagePullSecrets=[]'`；私有 registry 請建立 `regcred` 並移除該選項。
 
 ~~~sh
 export NAMESPACE=default
