@@ -1,0 +1,4 @@
+# Installer tooling only; do not include this file in runtime requirements.
+pip==26.2.2
+wheel==0.48.0
+packaging==26.3

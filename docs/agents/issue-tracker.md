@@ -30,7 +30,7 @@ Every write requires the gate named by the calling workflow. Revalidate owner/re
 - Create ticket issues blockers-first so dependency edges can reference existing identifiers.
 - Prefer native GitHub issue dependencies. The dependency API uses the blocker's numeric database ID, not its displayed issue number or GraphQL node ID.
 - When native sub-issues or dependencies are unavailable, use an explicit `Part of #<parent>` or `Blocked by: #<number>` body fallback and report the limitation.
-- The ready frontier contains open child tickets with no open blockers. This release works one frontier ticket at a time in approved order.
+- The ready frontier contains open child tickets whose blockers are all complete in the current run. This release works one frontier ticket at a time in approved order.
 - Do not apply labels in this release.
 - Do not assign, close, or otherwise mutate issues merely because implementation passed.
 - A pull request may contain closing references for the parent and tickets; they take effect only after merge. `$ai-workflow` never merges or directly closes them.
